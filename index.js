@@ -1,88 +1,96 @@
-let molecular_mass = 0;
-let elements_data_array = [];
+let decimal_places = 2;
+const MIN_DECIMALS = 0;
+// Display cap: stored weights carry up to 9 decimals (phosphorus), but past 6
+// the readout is noise for a teaching tool.
+const MAX_DECIMALS = 6;
 
+// Standard atomic weights at full published precision, CIAAW/IUPAC 2024
+// (https://ciaaw.org/atomic-weights.htm). Interval elements use the abridged
+// (conventional) single value. Elements with no standard weight
+// (Tc, Pm, Po, At, Rn, Fr, Ra, Ac, Np-Mt) carry a representative mass number.
+// The decimals control rounds displayed values only; the stored weights stay exact.
 const element_mass_map = {
-    "H": 1.0079,
-    "He": 4.0026,
-    "Li": 6.941,
-    "Be": 9.0122,
-    "B": 10.811,
-    "C": 12.0107,
-    "N": 14.0067,
-    "O": 15.9994,
-    "F": 18.9984,
+    "H": 1.008,
+    "He": 4.002602,
+    "Li": 6.94,
+    "Be": 9.0121831,
+    "B": 10.81,
+    "C": 12.011,
+    "N": 14.007,
+    "O": 15.999,
+    "F": 18.998403162,
     "Ne": 20.1797,
-    "Na": 22.9897,
+    "Na": 22.98976928,
     "Mg": 24.305,
-    "Al": 26.9815,
-    "Si": 28.0855,
-    "P": 30.9738,
-    "S": 32.065,
-    "Cl": 35.453,
-    "Ar": 39.948,
+    "Al": 26.9815384,
+    "Si": 28.085,
+    "P": 30.973761998,
+    "S": 32.06,
+    "Cl": 35.45,
+    "Ar": 39.95,
     "K": 39.0983,
     "Ca": 40.078,
-    "Sc": 44.9559,
+    "Sc": 44.955907,
     "Ti": 47.867,
     "V": 50.9415,
     "Cr": 51.9961,
-    "Mn": 54.938,
+    "Mn": 54.938043,
     "Fe": 55.845,
-    "Co": 58.9332,
+    "Co": 58.933194,
     "Ni": 58.6934,
     "Cu": 63.546,
-    "Zn": 65.39,
+    "Zn": 65.38,
     "Ga": 69.723,
-    "Ge": 72.64,
-    "As": 74.9216,
-    "Se": 78.96,
+    "Ge": 72.63,
+    "As": 74.921595,
+    "Se": 78.971,
     "Br": 79.904,
-    "Kr": 83.8,
+    "Kr": 83.798,
     "Rb": 85.4678,
     "Sr": 87.62,
-    "Y": 88.9059,
-    "Zr": 91.224,
-    "Nb": 92.9064,
-    "Mo": 95.94,
+    "Y": 88.905838,
+    "Zr": 91.222,
+    "Nb": 92.90637,
+    "Mo": 95.95,
     "Tc": 98,
     "Ru": 101.07,
-    "Rh": 102.9055,
+    "Rh": 102.90549,
     "Pd": 106.42,
     "Ag": 107.8682,
-    "Cd": 112.411,
+    "Cd": 112.414,
     "In": 114.818,
     "Sn": 118.71,
     "Sb": 121.76,
     "Te": 127.6,
-    "I": 126.9045,
+    "I": 126.90447,
     "Xe": 131.293,
-    "Cs": 132.9055,
+    "Cs": 132.90545196,
     "Ba": 137.327,
-    "La": 138.9055,
+    "La": 138.90547,
     "Ce": 140.116,
-    "Pr": 140.9077,
-    "Nd": 144.24,
+    "Pr": 140.90766,
+    "Nd": 144.242,
     "Pm": 145,
     "Sm": 150.36,
     "Eu": 151.964,
-    "Gd": 157.25,
-    "Tb": 158.9253,
+    "Gd": 157.249,
+    "Tb": 158.925354,
     "Dy": 162.5,
-    "Ho": 164.9303,
+    "Ho": 164.930329,
     "Er": 167.259,
-    "Tm": 168.9342,
-    "Yb": 173.04,
-    "Lu": 174.967,
-    "Hf": 178.49,
-    "Ta": 180.9479,
+    "Tm": 168.934219,
+    "Yb": 173.045,
+    "Lu": 174.96669,
+    "Hf": 178.486,
+    "Ta": 180.94788,
     "W": 183.84,
     "Re": 186.207,
     "Os": 190.23,
     "Ir": 192.217,
-    "Pt": 195.078,
-    "Au": 196.9665,
-    "Hg": 200.59,
-    "Tl": 204.3833,
+    "Pt": 195.084,
+    "Au": 196.96657,
+    "Hg": 200.592,
+    "Tl": 204.38,
     "Pb": 207.2,
     "Bi": 208.9804,
     "Po": 209,
@@ -91,9 +99,9 @@ const element_mass_map = {
     "Fr": 223,
     "Ra": 226,
     "Ac": 227,
-    "Th": 232.0381,
-    "Pa": 231.0359,
-    "U": 238.0289,
+    "Th": 232.0377,
+    "Pa": 231.03588,
+    "U": 238.02891,
     "Np": 237,
     "Pu": 244,
     "Am": 243,
@@ -113,49 +121,114 @@ const element_mass_map = {
     "Mt": 268
 }
 
-// global var for text entered into input DOM element
+// Elements with no CIAAW standard weight; the map carries a representative mass number.
+const placeholder_mass_numbers = new Set([
+    "Tc", "Pm", "Po", "At", "Rn", "Fr", "Ra", "Ac",
+    "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md",
+    "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt"
+]);
+
+// Current formula text, shared by the display update and the copy button.
 let molecular_formula;
 
+function escape_html(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Render a formula with subscript counts: H2SO4 -> H<sub>2</sub>SO<sub>4</sub>
+function render_formula_html(formula) {
+    return escape_html(formula).replace(/([A-Za-z)])(\d+)/g, "$1<sub>$2</sub>");
+}
+
+const UNICODE_SUBSCRIPTS = {"0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉"};
+
+// Plain-text formula with Unicode subscripts for pasting into documents: H2SO4 -> H₂SO₄
+function formula_to_unicode(formula) {
+    return formula.replace(/([A-Za-z)])(\d+)/g, (match, pre, digits) =>
+        pre + [...digits].map(d => UNICODE_SUBSCRIPTS[d]).join(""));
+}
+
+// Copy the rendered formula (Unicode subscripts) to the clipboard
+async function copy_formula() {
+    const text = formula_to_unicode(molecular_formula || "");
+    if (!text) {
+        return;
+    }
+    const btn = document.getElementById('formula-copy');
+    let ok = false;
+    try {
+        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            ok = true;
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+    } catch (e) {
+        ok = false;
+    }
+    if (btn) {
+        btn.textContent = ok ? "Copied!" : "Copy failed";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1200);
+    }
+}
+
 // construct the html for the details of the calculation
-function details_html(element_data_array) {
+// Breakdown table: one row per element with its share of the total mass.
+function details_html(element_counts, total_mass) {
     let rows = "";
-    for (entry of element_data_array) {
-        let element_symbol = entry[0]
-        let element_count = entry[1]
-        let atomic_mass = element_mass_map[entry[0]]
-        let element_mass = element_count * atomic_mass
-        rows += `<tr>
+    for (const entry of element_counts) {
+        const [element_symbol, element_count] = entry;
+        const atomic_mass = element_mass_map[element_symbol];
+        const element_mass = element_count * atomic_mass;
+        const pct = total_mass > 0 ? (100 * element_mass / total_mass) : 0;
+        const pct_text = pct.toFixed(1);
+        rows += `<tr style="background: linear-gradient(to right, rgba(102, 126, 234, 0.12) ${pct_text}%, transparent ${pct_text}%);">
             <td class="detail-element">${element_symbol}</td>
-            <td class="detail-atomic-mass">${atomic_mass.toFixed(4)}</td>
+            <td class="detail-atomic-mass">${atomic_mass.toFixed(decimal_places)}</td>
             <td class="detail-count">× ${element_count}</td>
-            <td class="detail-mass">${element_mass.toFixed(4)}</td>
+            <td class="detail-mass">${element_mass.toFixed(decimal_places)}</td>
+            <td class="detail-pct">${pct_text}%</td>
         </tr>`;
     }
+    const placeholders_used = element_counts
+        .map(([element_symbol]) => element_symbol)
+        .filter(sym => placeholder_mass_numbers.has(sym));
+    const placeholder_note = placeholders_used.length
+        ? ` &middot; ${placeholders_used.join(", ")}: representative mass number${placeholders_used.length > 1 ? "s" : ""} (no IUPAC standard weight${placeholders_used.length > 1 ? "s" : ""})`
+        : "";
     return `<table class="detail-grid">${rows}</table>
-        <div class="detail-source">Atomic masses from IUPAC</div>`
+        <div class="detail-source">Atomic masses from <a href="https://www.ciaaw.org/atomic-weights.htm" target="_blank" rel="noopener">IUPAC</a>${placeholder_note}</div>`
 };
-// 
+// Count atoms with a stack of element->count tallies, one per open parenthesis:
+// each ")" group multiplies out and folds into its parent, so Mg(OH)2 and
+// Fe2(SO4)3 accumulate correctly no matter how deeply groups nest.
+// Returns the total mass plus the per-element [symbol, count] pairs.
 function parse_formula(formula) {
-    let stack = [{}];
+    const stack = [{}];
     let i = 0;
 
     while (i < formula.length) {
-        let ch = formula[i];
+        const ch = formula[i];
         if (ch === '(') {
             stack.push({});
             i++;
         } else if (ch === ')') {
             i++;
-            let numStr = '';
+            let digits = '';
             while (i < formula.length && /[0-9]/.test(formula[i])) {
-                numStr += formula[i];
+                digits += formula[i];
                 i++;
             }
-            let multiplier = numStr ? parseInt(numStr) : 1;
-            let group = stack.pop();
-            let top = stack[stack.length - 1];
-            for (let sym in group) {
-                top[sym] = (top[sym] || 0) + group[sym] * multiplier;
+            const multiplier = digits ? parseInt(digits) : 1;
+            const group = stack.pop();
+            const parent = stack[stack.length - 1];
+            for (const sym in group) {
+                parent[sym] = (parent[sym] || 0) + group[sym] * multiplier;
             }
         } else if (/[A-Z]/.test(ch)) {
             let sym = ch;
@@ -164,53 +237,90 @@ function parse_formula(formula) {
                 sym += formula[i];
                 i++;
             }
-            let numStr = '';
+            let digits = '';
             while (i < formula.length && /[0-9]/.test(formula[i])) {
-                numStr += formula[i];
+                digits += formula[i];
                 i++;
             }
-            let count = numStr ? parseInt(numStr) : 1;
-            let top = stack[stack.length - 1];
+            const count = digits ? parseInt(digits) : 1;
+            const top = stack[stack.length - 1];
             top[sym] = (top[sym] || 0) + count;
         } else {
             i++;
         }
     }
 
-    let counts = stack[0];
+    const counts = stack[0];
+    const element_counts = [];
     let mass = 0;
-    elements_data_array = [];
-    for (let sym in counts) {
-        let count = counts[sym];
-        elements_data_array.push([sym, count]);
+    for (const sym in counts) {
+        const count = counts[sym];
+        element_counts.push([sym, count]);
         mass += element_mass_map[sym] * count;
     }
-
-    molecular_mass = mass;
-    return mass;
+    return { mass, element_counts };
 }
 
-// create listener for keyup events
-window.onkeyup = keyup;
+function update_display() {
+    const input_el = document.getElementById('mol-formula');
 
-// function to run on keyup
-function keyup(e) {
-    // reset certain variables on every keypress
-    molecular_mass = 0;
-    details = "";
-    elements_data_array = [];
+    // Read the formula, recompute from full-precision weights, repaint everything.
+    molecular_formula = input_el ? input_el.value : molecular_formula;
+    const { mass, element_counts } = parse_formula(molecular_formula || "");
+    const details_txt = details_html(element_counts, mass);
 
-    // the input molecular formula
-    molecular_formula = e.target.value;
-
-    // calculate the molecular mass and construct the detail of the calculation
-    molecular_mass = parse_formula(molecular_formula);
-    
-    // elements_data_array is a global variable constructed in function `parse_formula`
-    details_txt = details_html(elements_data_array);
-    
-    // modify the html on index.html to show molecular mass and the 
-    // detail of the calculation.
-    document.getElementById('output-text').innerHTML = molecular_mass.toFixed(4);
+    document.getElementById('output-text').innerHTML = mass.toFixed(decimal_places);
     document.getElementById('details-text').innerHTML = details_txt;
-};
+
+    const formula_row_el = document.getElementById('formula-display-row');
+    const formula_el = document.getElementById('formula-display');
+    if (formula_el) {
+        formula_el.innerHTML = molecular_formula ? render_formula_html(molecular_formula) : "";
+    }
+    if (formula_row_el) {
+        formula_row_el.hidden = !molecular_formula;
+    }
+
+    const decimal_value_el = document.getElementById('decimal-value');
+    if (decimal_value_el) {
+        decimal_value_el.textContent = decimal_places;
+    }
+    const minus_el = document.getElementById('decimal-minus');
+    const plus_el = document.getElementById('decimal-plus');
+    if (minus_el) {
+        minus_el.disabled = decimal_places <= MIN_DECIMALS;
+    }
+    if (plus_el) {
+        plus_el.disabled = decimal_places >= MAX_DECIMALS;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const input_el = document.getElementById('mol-formula');
+    if (input_el) {
+        input_el.addEventListener('input', update_display);
+    }
+    const copy_btn_el = document.getElementById('formula-copy');
+    if (copy_btn_el) {
+        copy_btn_el.addEventListener('click', copy_formula);
+    }
+    const minus_el = document.getElementById('decimal-minus');
+    const plus_el = document.getElementById('decimal-plus');
+    if (minus_el) {
+        minus_el.addEventListener('click', () => {
+            if (decimal_places > MIN_DECIMALS) {
+                decimal_places -= 1;
+                update_display();
+            }
+        });
+    }
+    if (plus_el) {
+        plus_el.addEventListener('click', () => {
+            if (decimal_places < MAX_DECIMALS) {
+                decimal_places += 1;
+                update_display();
+            }
+        });
+    }
+    update_display();
+});

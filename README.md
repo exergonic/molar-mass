@@ -1,6 +1,6 @@
-# Molecular Mass Calculator
+# Molar Mass Calculator
 
-Calculates the molecular mass (molar mass) of a chemical formula _as you type it_.
+Calculates the molar mass of a chemical formula _as you type it_.
 
 ![Demo](./demo.gif)
 
@@ -10,6 +10,9 @@ Calculates the molecular mass (molar mass) of a chemical formula _as you type it
 - **Parentheses support** — handles nested groups like `Mg(OH)2` and `Fe2(SO4)3`
 - **Detailed breakdown** — shows each element, its atomic mass, count, and contribution to the total
 - **Atomic mass reference** — values sourced from IUPAC, displayed per element
+- **Adjustable precision** — decimals stepper rounds displayed values (math stays full-precision)
+- **Subscript display + copy** — rendered formula with one-click Unicode-subscript copy for documents
+- **Mass-percent breakdown** — each element's share of the total, with proportional bars
 
 ## Usage
 
@@ -17,8 +20,8 @@ Type a chemical formula into the input field. Examples:
 
 | Formula | Mass |
 |---------|------|
-| `H2O` | 18.0152 |
-| `Mg(OH)2` | 58.3196 |
-| `Ca(NO3)2` | 164.0878 |
-| `Fe2(SO4)3` | 399.8778 |
-| `C6H12O6` | 180.1554 |
+| `H2O` | 18.0150 |
+| `Mg(OH)2` | 58.3190 |
+| `Ca(NO3)2` | 164.0860 |
+| `Fe2(SO4)3` | 399.8580 |
+| `C6H12O6` | 180.1560 |
