@@ -698,6 +698,26 @@ function update_converter(molar_mass) {
     computed_el.value = format_sig_figs(converter_source === "grams" ? given / molar_mass : given * molar_mass);
 }
 
+// The formula rides in the page link (…/#Fe2(SO4)3), so a link opens with
+// the calculation done. replaceState keeps typing out of the back button.
+function formula_from_hash() {
+    try {
+        return decodeURIComponent(location.hash.slice(1));
+    } catch (e) {
+        return "";
+    }
+}
+
+function sync_hash(formula) {
+    // "*" reads the same as a middle dot and stays readable in a link (no %C2%B7).
+    const trimmed = (formula || "").trim().replace(/[·•∙⋅]/g, "*");
+    if (trimmed === formula_from_hash()) {
+        return;
+    }
+    const url = trimmed ? "#" + encodeURIComponent(trimmed) : location.pathname + location.search;
+    history.replaceState(null, "", url);
+}
+
 function update_display() {
     const input_el = document.getElementById('mol-formula');
 
@@ -748,10 +768,19 @@ function update_display() {
         plus_el.disabled = decimal_places >= MAX_DECIMALS;
     }
     render_history();
+    sync_hash(molecular_formula);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const input_el = document.getElementById('mol-formula');
+    if (input_el && formula_from_hash()) {
+        input_el.value = formula_from_hash();
+    }
+    window.addEventListener('hashchange', () => {
+        if (input_el && formula_from_hash() !== input_el.value.trim()) {
+            load_formula(formula_from_hash());
+        }
+    });
     if (input_el) {
         input_el.addEventListener('input', () => {
             still_typing = true;

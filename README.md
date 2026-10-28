@@ -12,6 +12,7 @@ Calculates the molar mass of a chemical formula _as you type it_.
 - **Typo help** — unknown symbols (`Xx`) and miscapitalized formulas (`co2`, `NaCL`) are explained, with clickable fixes: _Did you mean Co₂ or CO₂?_
 - **Grams ⇄ moles** — type a mass to get moles or an amount to get grams, at the current molar mass (4 significant figures); the value you typed is kept when the formula changes
 - **Copy work** — copies the calculation as a line for a worksheet: `H₂O: 2(1.01) + 16.00 = 18.02 g/mol`. It's summed from the rounded atomic masses shown, the way it adds up by hand
+- **Shareable links** — the formula is kept in the page address (`…/#Fe2(SO4)3`), so a link opens with the calculation already done
 - **Detailed breakdown** — shows each element, its atomic mass, count, and contribution to the total
 - **Atomic mass reference** — values sourced from IUPAC, displayed per element
 - **Adjustable precision** — decimals stepper rounds displayed values (math stays full-precision)
