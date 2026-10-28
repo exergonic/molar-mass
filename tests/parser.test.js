@@ -146,3 +146,13 @@ test("converter rounding", () => {
     assert.equal(format_sig_figs(0.0000123456), "0.00001235");
     assert.equal(format_sig_figs(NaN), "");
 });
+
+test("worked calculation text", () => {
+    const work = (formula) => {
+        return context.worked_calculation_text(formula, parse_formula(formula).element_counts);
+    };
+    // decimal_places defaults to 2.
+    assert.equal(work("H2O"), "H₂O: 2(1.01) + 16.00 = 18.02 g/mol");
+    // Adds up from the terms shown (63.55 + 32.06 + 144.00 + 10.10).
+    assert.equal(work("CuSO4.5H2O"), "CuSO₄·5H₂O: 63.55 + 32.06 + 9(16.00) + 10(1.01) = 249.71 g/mol");
+});

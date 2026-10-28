@@ -335,13 +335,8 @@ function formula_to_unicode(formula) {
         pre + [...digits].map(d => UNICODE_SUBSCRIPTS[d]).join(""));
 }
 
-// Copy the rendered formula (Unicode subscripts) to the clipboard
-async function copy_formula() {
-    const text = formula_to_unicode(molecular_formula || "");
-    if (!text) {
-        return;
-    }
-    const btn = document.getElementById('formula-copy');
+// Copy text to the clipboard; true if it worked.
+async function copy_to_clipboard(text) {
     let ok = false;
     try {
         if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
@@ -358,10 +353,50 @@ async function copy_formula() {
     } catch (e) {
         ok = false;
     }
-    if (btn) {
-        btn.textContent = ok ? "Copied!" : "Copy failed";
-        setTimeout(() => { btn.textContent = "Copy"; }, 1200);
+    return ok;
+}
+
+// Show a copy button's outcome briefly, then restore its label.
+function flash_copy_result(btn, ok) {
+    if (!btn) {
+        return;
     }
+    const label = btn.dataset.label || btn.textContent;
+    btn.dataset.label = label;
+    btn.textContent = ok ? "Copied!" : "Copy failed";
+    setTimeout(() => { btn.textContent = label; }, 1200);
+}
+
+// Copy the rendered formula (Unicode subscripts) to the clipboard
+async function copy_formula() {
+    const text = formula_to_unicode(molecular_formula || "");
+    if (!text) {
+        return;
+    }
+    flash_copy_result(document.getElementById('formula-copy'), await copy_to_clipboard(text));
+}
+
+// The calculation written out for a worksheet, at the current decimals:
+// "H₂O: 2(1.01) + 16.00 = 18.02 g/mol". The total is summed from the
+// rounded atomic masses shown, so the line adds up the way it would by hand
+// from a periodic table; it can differ from the full-precision result in
+// the last digit or two (CuSO4·5H2O: 249.71 here vs 249.68).
+function worked_calculation_text(formula, element_counts) {
+    let total = 0;
+    const terms = element_counts.map(([sym, count]) => {
+        const atomic_mass = element_mass_map[sym].toFixed(decimal_places);
+        total += count * Number(atomic_mass);
+        return count === 1 ? atomic_mass : `${count}(${atomic_mass})`;
+    });
+    return `${formula_to_unicode(formula.trim())}: ${terms.join(" + ")} = ${total.toFixed(decimal_places)} g/mol`;
+}
+
+async function copy_work(btn) {
+    const { element_counts } = parse_formula(molecular_formula || "");
+    if (!element_counts.length) {
+        return;
+    }
+    flash_copy_result(btn, await copy_to_clipboard(worked_calculation_text(molecular_formula, element_counts)));
 }
 
 // construct the html for the details of the calculation
@@ -388,7 +423,11 @@ function details_html(element_counts, total_mass) {
     const placeholder_note = placeholders_used.length
         ? ` &middot; ${placeholders_used.join(", ")}: representative mass number${placeholders_used.length > 1 ? "s" : ""} (no IUPAC standard weight${placeholders_used.length > 1 ? "s" : ""})`
         : "";
+    const copy_work_html = element_counts.length
+        ? `<button class="work-copy" type="button" title="Copy the calculation, e.g. 2(1.01) + 16.00 = 18.02 g/mol">Copy work</button>`
+        : "";
     return `<table class="detail-grid">${rows}</table>
+        ${copy_work_html}
         <div class="detail-source">Atomic masses from <a href="https://www.ciaaw.org/atomic-weights.htm" target="_blank" rel="noopener">IUPAC</a>${placeholder_note}</div>`
 };
 // Characters that separate the parts of a hydrate or adduct: CuSO4·5H2O.
@@ -770,6 +809,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 update_display();
             });
         }
+    }
+    const details_el = document.getElementById('details-text');
+    if (details_el) {
+        details_el.addEventListener('click', (event) => {
+            const btn = event.target.closest('.work-copy');
+            if (btn) {
+                copy_work(btn);
+            }
+        });
     }
     const problem_el = document.getElementById('formula-problem');
     if (problem_el) {
