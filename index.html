@@ -7,6 +7,18 @@
     <title>Molar Mass Calculator</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="index.css" />
+    <script>
+      // Apply saved view choices before first paint, so there's no light flash in dark mode.
+      try {
+        const theme = localStorage.getItem("molwt-theme");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.dataset.theme = theme;
+        }
+        if (localStorage.getItem("molwt-large-text") === "1") {
+          document.documentElement.classList.add("large-text");
+        }
+      } catch (e) {}
+    </script>
     <script src="index.js" defer></script>
   </head>
   <body>
@@ -59,5 +71,9 @@
       <p id="history-empty">Press Enter to save a result here. Clearing a formula saves it too.</p>
       <ul id="history-list"></ul>
     </aside>
+    <div id="view-controls">
+      <button id="theme-toggle" type="button"></button>
+      <button id="text-size-toggle" type="button" aria-pressed="false" title="Larger text">A+</button>
+    </div>
   </body>
 </html>

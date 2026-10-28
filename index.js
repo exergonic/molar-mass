@@ -409,7 +409,7 @@ function details_html(element_counts, total_mass) {
         const element_mass = element_count * atomic_mass;
         const pct = total_mass > 0 ? (100 * element_mass / total_mass) : 0;
         const pct_text = pct.toFixed(1);
-        rows += `<tr style="background: linear-gradient(to right, rgba(102, 126, 234, 0.12) ${pct_text}%, transparent ${pct_text}%);">
+        rows += `<tr style="background: linear-gradient(to right, var(--accent-bar) ${pct_text}%, transparent ${pct_text}%);">
             <td class="detail-element">${element_symbol}</td>
             <td class="detail-atomic-mass">${atomic_mass.toFixed(decimal_places)}</td>
             <td class="detail-count">× ${element_count}</td>
@@ -771,7 +771,69 @@ function update_display() {
     sync_hash(molecular_formula);
 }
 
+// Theme and text size. The saved choice is applied by a script in <head>;
+// these keep the toggles in step and remember changes.
+const THEME_KEY = "molwt-theme";
+const LARGE_TEXT_KEY = "molwt-large-text";
+
+function store_view_setting(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        // Storage unavailable: the choice lasts this page load only.
+    }
+}
+
+function effective_theme() {
+    const chosen = document.documentElement.dataset.theme;
+    if (chosen) {
+        return chosen;
+    }
+    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
+}
+
+function update_view_controls() {
+    const theme_el = document.getElementById('theme-toggle');
+    if (theme_el) {
+        const dark = effective_theme() === "dark";
+        theme_el.textContent = dark ? "☀" : "☾";
+        theme_el.title = dark ? "Light mode" : "Dark mode";
+        theme_el.setAttribute('aria-label', dark ? "Switch to light mode" : "Switch to dark mode");
+    }
+    const text_size_el = document.getElementById('text-size-toggle');
+    if (text_size_el) {
+        text_size_el.setAttribute('aria-pressed', document.documentElement.classList.contains('large-text'));
+    }
+}
+
+function toggle_theme() {
+    const theme = effective_theme() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = theme;
+    store_view_setting(THEME_KEY, theme);
+    update_view_controls();
+}
+
+function toggle_large_text() {
+    const large = document.documentElement.classList.toggle('large-text');
+    store_view_setting(LARGE_TEXT_KEY, large ? "1" : "0");
+    update_view_controls();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    const theme_el = document.getElementById('theme-toggle');
+    if (theme_el) {
+        theme_el.addEventListener('click', toggle_theme);
+    }
+    const text_size_el = document.getElementById('text-size-toggle');
+    if (text_size_el) {
+        text_size_el.addEventListener('click', toggle_large_text);
+    }
+    if (window.matchMedia) {
+        // Follow a system theme change unless the toggle has picked one.
+        matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update_view_controls);
+    }
+    update_view_controls();
+
     const input_el = document.getElementById('mol-formula');
     if (input_el && formula_from_hash()) {
         input_el.value = formula_from_hash();
