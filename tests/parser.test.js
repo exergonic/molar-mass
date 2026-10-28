@@ -82,3 +82,59 @@ test("hydrate separator display", () => {
     assert.equal(formula_to_unicode("CuSO4.5H2O"), "CuSO₄·5H₂O");
     assert.equal(formula_to_unicode("K3[Fe(CN)6]"), "K₃[Fe(CN)₆]");
 });
+
+test("unknown symbols are reported and left out of the mass", () => {
+    const result = parse_formula("Xx2O");
+    assert.deepEqual([...result.unknown_symbols], ["Xx"]);
+    assert.ok(Math.abs(result.mass - 15.999) < 5e-4);
+    assert.equal(context.is_complete_formula(result), false);
+    assert.deepEqual([...parse_formula("QH2").unknown_symbols], ["Q"]);
+});
+
+test("lowercase letters are flagged", () => {
+    const result = parse_formula("co2");
+    assert.equal(result.has_lowercase, true);
+    assert.equal(context.is_complete_formula(result), false);
+    assert.equal(parse_formula("CO2").has_lowercase, false);
+});
+
+test("a half-typed trailing symbol is incomplete, not unknown", () => {
+    const result = parse_formula("NaClM");
+    assert.equal(result.incomplete, true);
+    assert.equal(result.unknown_symbols.length, 0);
+    assert.ok(Math.abs(result.mass - 58.440) < 5e-4);
+    assert.equal(context.is_complete_formula(result), false);
+    // "M2" and "Q" can't be the start of a symbol, so they are wrong.
+    assert.deepEqual([...parse_formula("M2").unknown_symbols], ["M"]);
+    assert.deepEqual([...parse_formula("Q").unknown_symbols], ["Q"]);
+});
+
+test("superheavy elements are known", () => {
+    for (const sym of ["Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"]) {
+        assert.equal(parse_formula(sym).unknown_symbols.length, 0, sym);
+    }
+});
+
+test("capitalization suggestions", () => {
+    const { suggest_capitalizations } = context;
+    assert.deepEqual([...suggest_capitalizations("co2")], ["Co2", "CO2"]);
+    assert.deepEqual([...suggest_capitalizations("nacl")], ["NaCl"]);
+    assert.deepEqual([...suggest_capitalizations("NaCL")], ["NaCl"]);
+    assert.deepEqual([...suggest_capitalizations("cuso4·5h2o")].slice(0, 1), ["CuSO4·5H2O"]);
+    // Valid runs are kept as typed; only the broken run is changed.
+    assert.deepEqual([...suggest_capitalizations("CO2·h2o")], ["CO2·H2O"]);
+    assert.deepEqual([...suggest_capitalizations("Xx2")], []);
+    // Long garbage doesn't blow up.
+    assert.deepEqual([...suggest_capitalizations("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")], []);
+});
+
+test("problem messages", () => {
+    const { formula_problem_html } = context;
+    const message = (formula, typing = false) => formula_problem_html(formula, parse_formula(formula), typing);
+    assert.match(message("Xx2"), /no element with the symbol <strong>Xx<\/strong>/);
+    assert.match(message("co2"), /capital letter.*Did you mean/);
+    assert.equal(message("H2O"), "");
+    // "NaCL" might be "NaCLi" mid-typing: quiet while typing, explained after.
+    assert.equal(message("NaCL", true), "");
+    assert.match(message("NaCL", false), /symbol <strong>L<\/strong>.*data-formula="NaCl"/);
+});

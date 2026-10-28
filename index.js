@@ -7,7 +7,7 @@ const MAX_DECIMALS = 6;
 // Standard atomic weights at full published precision, CIAAW/IUPAC 2024
 // (https://ciaaw.org/atomic-weights.htm). Interval elements use the abridged
 // (conventional) single value. Elements with no standard weight
-// (Tc, Pm, Po, At, Rn, Fr, Ra, Ac, Np-Mt) carry a representative mass number.
+// (Tc, Pm, Po, At, Rn, Fr, Ra, Ac, Np-Og) carry a representative mass number.
 // The decimals control rounds displayed values only; the stored weights stay exact.
 const element_mass_map = {
     "H": 1.008,
@@ -118,18 +118,37 @@ const element_mass_map = {
     "Sg": 266,
     "Bh": 264,
     "Hs": 277,
-    "Mt": 268
+    "Mt": 268,
+    "Ds": 281,
+    "Rg": 282,
+    "Cn": 285,
+    "Nh": 286,
+    "Fl": 289,
+    "Mc": 290,
+    "Lv": 293,
+    "Ts": 294,
+    "Og": 294
 }
 
 // Elements with no CIAAW standard weight; the map carries a representative mass number.
 const placeholder_mass_numbers = new Set([
     "Tc", "Pm", "Po", "At", "Rn", "Fr", "Ra", "Ac",
     "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md",
-    "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt"
+    "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt",
+    "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
 ]);
+
+// Lowercase symbol -> proper symbol, for reading miscapitalized input.
+const SYMBOLS_BY_LOWERCASE = new Map(Object.keys(element_mass_map).map(sym => [sym.toLowerCase(), sym]));
 
 // Current formula text, shared by the display update and the copy button.
 let molecular_formula;
+
+// True from a keystroke until typing pauses, to hold back hints about a
+// symbol that's still being typed.
+const TYPING_PAUSE_MS = 1000;
+let still_typing = false;
+let typing_timer = null;
 
 // Saved formulas, most recent first, each with an optional label
 // ({formula, label}). Masses are recomputed on render so they follow the
@@ -168,14 +187,13 @@ function save_history() {
 }
 
 // Put a formula at the top of the history, moving it up (label kept) if it's already there.
-// Blanks and formulas that don't compute (unknown symbols, lowercase) are skipped.
+// Blanks, half-typed formulas and ones with unreadable symbols are skipped.
 function add_to_history(formula) {
     formula = (formula || "").trim();
     if (!formula) {
         return;
     }
-    const { mass } = parse_formula(formula);
-    if (!Number.isFinite(mass) || mass <= 0) {
+    if (!is_complete_formula(parse_formula(formula))) {
         return;
     }
     const existing = history_entries.find(entry => entry.formula === formula);
@@ -294,6 +312,8 @@ function load_formula(formula) {
         return;
     }
     input_el.value = formula;
+    clearTimeout(typing_timer);
+    still_typing = false;
     update_display();
     input_el.focus();
 }
@@ -392,9 +412,16 @@ function read_coefficient(formula, i) {
 // so Mg(OH)2, Fe2(SO4)3 and K3[Fe(CN)6] accumulate correctly no matter how
 // deeply groups nest. Hydrate parts (CuSO4·5H2O) are tallied separately and
 // added in times their leading coefficient.
-// Returns the total mass plus the per-element [symbol, count] pairs.
+// Returns the total mass plus the per-element [symbol, count] pairs, and
+// what couldn't be read: unknown_symbols ("Xx", left out of the mass),
+// has_lowercase (letters not part of a symbol: "co2"), and incomplete
+// (the input ends on the first letter of a two-letter symbol, "NaClM",
+// so it's mid-typing rather than wrong).
 function parse_formula(formula) {
     const totals = {};
+    const unknown_symbols = [];
+    let has_lowercase = false;
+    let incomplete = false;
     let stack;
     let coefficient;
     let i = 0;
@@ -460,10 +487,23 @@ function parse_formula(formula) {
                 digits += formula[i];
                 i++;
             }
+            if (!Object.hasOwn(element_mass_map, sym)) {
+                const mid_typing = i === formula.length && !digits && sym.length === 1
+                    && Object.keys(element_mass_map).some(known => known.length === 2 && known[0] === sym);
+                if (mid_typing) {
+                    incomplete = true;
+                } else if (!unknown_symbols.includes(sym)) {
+                    unknown_symbols.push(sym);
+                }
+                continue;
+            }
             const count = digits ? parseInt(digits) : 1;
             const top = stack[stack.length - 1];
             top[sym] = (top[sym] || 0) + count;
         } else {
+            if (/[a-z]/.test(ch)) {
+                has_lowercase = true;
+            }
             i++;
         }
     }
@@ -476,7 +516,90 @@ function parse_formula(formula) {
         element_counts.push([sym, count]);
         mass += element_mass_map[sym] * count;
     }
-    return { mass, element_counts };
+    return { mass, element_counts, unknown_symbols, has_lowercase, incomplete };
+}
+
+// A formula worth saving: every symbol read, and something to weigh.
+function is_complete_formula(result) {
+    return !result.unknown_symbols.length && !result.has_lowercase && !result.incomplete && result.mass > 0;
+}
+
+// Ways to read a run of letters as element symbols ignoring case, two-letter
+// symbols first: "co" -> ["Co", "CO"], "nacl" -> ["NaCl"].
+function symbol_readings(letters, limit) {
+    const readings = [];
+    const dead_ends = new Set();
+    function walk(pos, so_far) {
+        if (pos === letters.length) {
+            readings.push(so_far);
+            return true;
+        }
+        if (dead_ends.has(pos)) {
+            return false;
+        }
+        let found = false;
+        for (const len of [2, 1]) {
+            if (readings.length >= limit || pos + len > letters.length) {
+                continue;
+            }
+            const sym = SYMBOLS_BY_LOWERCASE.get(letters.slice(pos, pos + len).toLowerCase());
+            if (sym && walk(pos + len, so_far + sym)) {
+                found = true;
+            }
+        }
+        if (!found) {
+            dead_ends.add(pos);
+        }
+        return found;
+    }
+    walk(0, "");
+    return readings;
+}
+
+// Recapitalized versions of a formula that read cleanly, for "Did you mean"
+// hints: "co2" -> ["Co2", "CO2"], "NaCL" -> ["NaCl"]. Letter runs that are
+// already valid as typed are left alone.
+function suggest_capitalizations(formula, limit = 3) {
+    const parts = formula.split(/([A-Za-z]+)/);
+    let candidates = [""];
+    for (let k = 0; k < parts.length; k++) {
+        const part = parts[k];
+        const is_letters = k % 2 === 1;
+        const valid_as_typed = /^(?:[A-Z][a-z]?)+$/.test(part)
+            && part.match(/[A-Z][a-z]?/g).every(sym => Object.hasOwn(element_mass_map, sym));
+        const options = !is_letters || valid_as_typed ? [part] : symbol_readings(part, limit + 1);
+        if (!options.length) {
+            return [];
+        }
+        candidates = candidates.flatMap(prefix => options.map(option => prefix + option)).slice(0, limit + 1);
+    }
+    return candidates.filter(candidate => candidate !== formula).slice(0, limit);
+}
+
+// Explain what couldn't be read, with clickable recapitalizations. A
+// half-typed trailing symbol ("NaClM") only counts once typing has paused,
+// so typing "Mg" doesn't flash a complaint about "M".
+function formula_problem_html(formula, result, typing) {
+    const unknown = result.incomplete && !typing
+        ? [...result.unknown_symbols, formula.slice(-1)]
+        : result.unknown_symbols;
+    let message = "";
+    if (unknown.length) {
+        message = unknown.length === 1
+            ? `There's no element with the symbol <strong>${escape_html(unknown[0])}</strong>.`
+            : `There are no elements with the symbols ${unknown.map(sym => `<strong>${escape_html(sym)}</strong>`).join(", ")}.`;
+    } else if (result.has_lowercase) {
+        message = "Element symbols start with a capital letter.";
+    } else {
+        return "";
+    }
+    const suggestions = suggest_capitalizations(formula);
+    if (suggestions.length) {
+        const buttons = suggestions.map(suggestion =>
+            `<button class="formula-suggestion" type="button" data-formula="${escape_html(suggestion)}">${render_formula_html(suggestion)}</button>`);
+        message += ` Did you mean ${buttons.join(" or ")}?`;
+    }
+    return message;
 }
 
 // Show hydrate separators as a middle dot: "CuSO4.5H2O" and "CuSO4*5H2O"
@@ -511,11 +634,19 @@ function update_display() {
 
     // Read the formula, recompute from full-precision weights, repaint everything.
     molecular_formula = input_el ? input_el.value : molecular_formula;
-    const { mass, element_counts } = parse_formula(molecular_formula || "");
-    const details_txt = details_html(element_counts, mass);
+    const result = parse_formula(molecular_formula || "");
+    const problem_html = formula_problem_html(molecular_formula || "", result, still_typing);
+    const { mass, element_counts } = result;
+    // A dash rather than a mass that leaves part of the formula out.
+    const unreadable = result.unknown_symbols.length || result.has_lowercase || result.incomplete;
 
-    document.getElementById('output-text').innerHTML = mass.toFixed(decimal_places);
-    document.getElementById('details-text').innerHTML = details_txt;
+    document.getElementById('output-text').innerHTML = unreadable ? "—" : mass.toFixed(decimal_places);
+    document.getElementById('details-text').innerHTML = unreadable ? details_html([], 0) : details_html(element_counts, mass);
+    const problem_el = document.getElementById('formula-problem');
+    if (problem_el) {
+        problem_el.innerHTML = problem_html;
+        problem_el.hidden = !problem_html;
+    }
 
     const formula_row_el = document.getElementById('formula-display-row');
     const formula_el = document.getElementById('formula-display');
@@ -548,7 +679,15 @@ function update_display() {
 document.addEventListener('DOMContentLoaded', () => {
     const input_el = document.getElementById('mol-formula');
     if (input_el) {
-        input_el.addEventListener('input', update_display);
+        input_el.addEventListener('input', () => {
+            still_typing = true;
+            update_display();
+            clearTimeout(typing_timer);
+            typing_timer = setTimeout(() => {
+                still_typing = false;
+                update_display();
+            }, TYPING_PAUSE_MS);
+        });
         input_el.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 add_to_history(input_el.value);
@@ -585,6 +724,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 history_entries = [];
                 save_history();
                 render_history();
+            }
+        });
+    }
+    const problem_el = document.getElementById('formula-problem');
+    if (problem_el) {
+        problem_el.addEventListener('click', (event) => {
+            const btn = event.target.closest('button[data-formula]');
+            if (btn) {
+                load_formula(btn.dataset.formula);
             }
         });
     }

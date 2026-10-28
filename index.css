@@ -446,3 +446,35 @@ h1:has(#output-text) {
     background: #fed7d7;
     color: #e53e3e;
 }
+
+/* "There's no element with the symbol Xx. Did you mean ...?" */
+#formula-problem {
+    max-width: 600px;
+    margin-bottom: 16px;
+    padding: 10px 16px;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: #9c4221;
+    background: #fffaf0;
+    border: 1px solid #fbd38d;
+    border-radius: 10px;
+}
+
+.formula-suggestion {
+    padding: 2px 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border: 2px solid #e2e8f0;
+    border-radius: 999px;
+    background: white;
+    color: #2d3748;
+    cursor: pointer;
+}
+
+.formula-suggestion sub {
+    color: #667eea;
+}
+
+.formula-suggestion:hover {
+    border-color: #667eea;
+}
