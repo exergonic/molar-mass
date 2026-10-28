@@ -29,6 +29,8 @@ body > p {
     color: #718096;
     margin-bottom: 24px;
     font-size: 1.25rem;
+    text-align: center;
+    line-height: 1.5;
 }
 
 #input-text {
