@@ -478,3 +478,64 @@ h1:has(#output-text) {
 .formula-suggestion:hover {
     border-color: #667eea;
 }
+
+#output-unit {
+    margin-left: 0.4em;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #a0aec0;
+}
+
+#output-unit[hidden] {
+    display: none;
+}
+
+/* Grams <-> moles */
+#converter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 600px;
+    margin: 12px 0 0;
+}
+
+#converter[hidden] {
+    display: none;
+}
+
+.converter-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    font-size: 1.25rem;
+    color: #718096;
+}
+
+.converter-field input {
+    min-width: 0;
+    padding: 10px 14px;
+    font-size: 1.25rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.converter-arrow {
+    font-size: 1.5rem;
+    color: #a0aec0;
+}
+
+/* No spinner arrows: amounts are typed, not stepped. */
+.converter-field input::-webkit-inner-spin-button,
+.converter-field input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.converter-field input {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}

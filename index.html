@@ -30,7 +30,7 @@
     <p id="formula-problem" role="status" hidden></p>
     <div>
       <h1>
-        <span id="output-text"></span>
+        <span id="output-text"></span><span id="output-unit">g/mol</span>
       </h1>
     </div>
     <div id="decimal-control">
@@ -38,6 +38,17 @@
       <button id="decimal-minus" type="button" aria-label="Fewer decimal places">−</button>
       <span id="decimal-value" aria-live="polite">2</span>
       <button id="decimal-plus" type="button" aria-label="More decimal places">+</button>
+    </div>
+    <div id="converter" hidden>
+      <label class="converter-field">
+        <input id="convert-grams" type="number" inputmode="decimal" min="0" step="any" placeholder="mass" aria-label="Mass in grams" />
+        <span>g</span>
+      </label>
+      <span class="converter-arrow" aria-hidden="true">⇄</span>
+      <label class="converter-field">
+        <input id="convert-moles" type="number" inputmode="decimal" min="0" step="any" placeholder="amount" aria-label="Amount in moles" />
+        <span>mol</span>
+      </label>
     </div>
     <div id="details-text" class="details-text"></div>
     <aside id="history" aria-label="Saved molar masses">

@@ -629,6 +629,36 @@ function normalize_dots(formula) {
     return out;
 }
 
+// Grams <-> moles: whichever field was typed in last is the given value,
+// and the other is computed from it at the current molar mass. Computed
+// values show 4 significant figures.
+const CONVERTER_SIG_FIGS = 4;
+let converter_source = "grams";
+
+function format_sig_figs(value) {
+    return Number.isFinite(value) ? String(Number(value.toPrecision(CONVERTER_SIG_FIGS))) : "";
+}
+
+function update_converter(molar_mass) {
+    const converter_el = document.getElementById('converter');
+    const grams_el = document.getElementById('convert-grams');
+    const moles_el = document.getElementById('convert-moles');
+    if (!converter_el || !grams_el || !moles_el) {
+        return;
+    }
+    converter_el.hidden = !(molar_mass > 0);
+    if (!(molar_mass > 0)) {
+        return;
+    }
+    const [given_el, computed_el] = converter_source === "grams" ? [grams_el, moles_el] : [moles_el, grams_el];
+    const given = parseFloat(given_el.value);
+    if (given_el.value === "" || !Number.isFinite(given)) {
+        computed_el.value = "";
+        return;
+    }
+    computed_el.value = format_sig_figs(converter_source === "grams" ? given / molar_mass : given * molar_mass);
+}
+
 function update_display() {
     const input_el = document.getElementById('mol-formula');
 
@@ -641,6 +671,11 @@ function update_display() {
     const unreadable = result.unknown_symbols.length || result.has_lowercase || result.incomplete;
 
     document.getElementById('output-text').innerHTML = unreadable ? "—" : mass.toFixed(decimal_places);
+    const unit_el = document.getElementById('output-unit');
+    if (unit_el) {
+        unit_el.hidden = unreadable || !(mass > 0);
+    }
+    update_converter(unreadable ? 0 : mass);
     document.getElementById('details-text').innerHTML = unreadable ? details_html([], 0) : details_html(element_counts, mass);
     const problem_el = document.getElementById('formula-problem');
     if (problem_el) {
@@ -726,6 +761,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 render_history();
             }
         });
+    }
+    for (const [id, source] of [['convert-grams', 'grams'], ['convert-moles', 'moles']]) {
+        const field_el = document.getElementById(id);
+        if (field_el) {
+            field_el.addEventListener('input', () => {
+                converter_source = source;
+                update_display();
+            });
+        }
     }
     const problem_el = document.getElementById('formula-problem');
     if (problem_el) {

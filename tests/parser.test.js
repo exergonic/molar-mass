@@ -138,3 +138,11 @@ test("problem messages", () => {
     assert.equal(message("NaCL", true), "");
     assert.match(message("NaCL", false), /symbol <strong>L<\/strong>.*data-formula="NaCl"/);
 });
+
+test("converter rounding", () => {
+    const { format_sig_figs } = context;
+    assert.equal(format_sig_figs(10 / 18.015), "0.5551");
+    assert.equal(format_sig_figs(2 * 58.44), "116.9");
+    assert.equal(format_sig_figs(0.0000123456), "0.00001235");
+    assert.equal(format_sig_figs(NaN), "");
+});

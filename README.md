@@ -10,6 +10,7 @@ Calculates the molar mass of a chemical formula _as you type it_.
 - **Parentheses and brackets** — handles nested groups like `Mg(OH)2`, `Fe2(SO4)3` and `K3[Fe(CN)6]`
 - **Hydrates** — `CuSO4·5H2O`, also typed as `CuSO4.5H2O` or `CuSO4*5H2O`; fractional coefficients like `CaSO4·0.5H2O` work too
 - **Typo help** — unknown symbols (`Xx`) and miscapitalized formulas (`co2`, `NaCL`) are explained, with clickable fixes: _Did you mean Co₂ or CO₂?_
+- **Grams ⇄ moles** — type a mass to get moles or an amount to get grams, at the current molar mass (4 significant figures); the value you typed is kept when the formula changes
 - **Detailed breakdown** — shows each element, its atomic mass, count, and contribution to the total
 - **Atomic mass reference** — values sourced from IUPAC, displayed per element
 - **Adjustable precision** — decimals stepper rounds displayed values (math stays full-precision)
