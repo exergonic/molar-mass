@@ -131,18 +131,29 @@ const placeholder_mass_numbers = new Set([
 // Current formula text, shared by the display update and the copy button.
 let molecular_formula;
 
-// Saved formulas, most recent first. Only formulas are stored; masses are
-// recomputed on render so they follow the decimals control.
+// Saved formulas, most recent first, each with an optional label
+// ({formula, label}). Masses are recomputed on render so they follow the
+// decimals control.
 const HISTORY_KEY = "molwt-history";
 const MAX_HISTORY = 50;
-let history_formulas = load_history();
+const MAX_LABEL_LENGTH = 40;
+let history_entries = load_history();
 // Formula to flash in the history list on its next render.
 let just_saved_formula = null;
+// Index of the entry whose label is being edited, or null.
+let editing_index = null;
 
 function load_history() {
     try {
         const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
-        return Array.isArray(saved) ? saved.filter(f => typeof f === "string") : [];
+        if (!Array.isArray(saved)) {
+            return [];
+        }
+        // Earlier versions stored bare formula strings.
+        return saved
+            .map(item => typeof item === "string" ? { formula: item, label: "" } : item)
+            .filter(item => item && typeof item.formula === "string")
+            .map(item => ({ formula: item.formula, label: typeof item.label === "string" ? item.label : "" }));
     } catch (e) {
         return [];
     }
@@ -150,13 +161,13 @@ function load_history() {
 
 function save_history() {
     try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history_formulas));
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history_entries));
     } catch (e) {
         // Storage unavailable (private window, blocked site data): history lasts this page load only.
     }
 }
 
-// Put a formula at the top of the history, moving it up if it's already there.
+// Put a formula at the top of the history, moving it up (label kept) if it's already there.
 // Blanks and formulas that don't compute (unknown symbols, lowercase) are skipped.
 function add_to_history(formula) {
     formula = (formula || "").trim();
@@ -167,16 +178,43 @@ function add_to_history(formula) {
     if (!Number.isFinite(mass) || mass <= 0) {
         return;
     }
-    history_formulas = [formula, ...history_formulas.filter(f => f !== formula)].slice(0, MAX_HISTORY);
+    const existing = history_entries.find(entry => entry.formula === formula);
+    const entry = existing || { formula, label: "" };
+    history_entries = [entry, ...history_entries.filter(e => e !== entry)].slice(0, MAX_HISTORY);
     just_saved_formula = formula;
     save_history();
     render_history();
 }
 
 function remove_from_history(index) {
-    history_formulas.splice(index, 1);
+    history_entries.splice(index, 1);
     save_history();
     render_history();
+}
+
+function start_label_edit(index) {
+    editing_index = index;
+    render_history();
+}
+
+// Close the label editor, keeping the typed label when save is true.
+// Enter and Escape hand focus back to the formula input; a blur leaves it where the click went.
+function finish_label_edit(save, refocus) {
+    if (editing_index === null) {
+        return;
+    }
+    const index = editing_index;
+    editing_index = null;
+    const label_input_el = document.querySelector('.history-label-input');
+    if (save && label_input_el && history_entries[index]) {
+        history_entries[index].label = label_input_el.value.trim().slice(0, MAX_LABEL_LENGTH);
+        save_history();
+    }
+    render_history();
+    const input_el = document.getElementById('mol-formula');
+    if (refocus && input_el) {
+        input_el.focus();
+    }
 }
 
 function render_history() {
@@ -187,26 +225,54 @@ function render_history() {
         return;
     }
     const current = (molecular_formula || "").trim();
-    list_el.innerHTML = history_formulas.map((formula, index) => {
+    list_el.innerHTML = history_entries.map(({ formula, label }, index) => {
+        if (index === editing_index) {
+            return `<li class="editing">
+                <span class="history-formula">${render_formula_html(formula)}</span>
+                <input class="history-label-input" type="text" maxlength="${MAX_LABEL_LENGTH}"
+                    value="${escape_html(label)}" placeholder="Label, e.g. Problem 3"
+                    aria-label="Label for ${escape_html(formula)}" />
+            </li>`;
+        }
         const { mass } = parse_formula(formula);
         const classes = [
             formula === current ? "current" : "",
             formula === just_saved_formula ? "just-saved" : ""
         ].join(" ").trim();
+        const label_html = label ? `<span class="history-label">${escape_html(label)}</span>` : "";
         return `<li class="${classes}">
             <button class="history-load" type="button" data-index="${index}" title="Load ${escape_html(formula)}">
-                <span class="history-formula">${render_formula_html(formula)}</span>
+                <span class="history-name">
+                    <span class="history-formula">${render_formula_html(formula)}</span>
+                    ${label_html}
+                </span>
                 <span class="history-mass">${mass.toFixed(decimal_places)}</span>
             </button>
-            <button class="history-remove" type="button" data-index="${index}" aria-label="Remove ${escape_html(formula)}">×</button>
+            <button class="history-edit" type="button" data-index="${index}" title="Label" aria-label="Label ${escape_html(formula)}">✎</button>
+            <button class="history-remove" type="button" data-index="${index}" title="Remove" aria-label="Remove ${escape_html(formula)}">×</button>
         </li>`;
     }).join("");
     just_saved_formula = null;
+
+    const label_input_el = list_el.querySelector('.history-label-input');
+    if (label_input_el) {
+        label_input_el.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                finish_label_edit(true, true);
+            } else if (event.key === 'Escape') {
+                finish_label_edit(false, true);
+            }
+        });
+        label_input_el.addEventListener('blur', () => finish_label_edit(true, false));
+        label_input_el.focus();
+        label_input_el.select();
+    }
+
     if (empty_el) {
-        empty_el.hidden = history_formulas.length > 0;
+        empty_el.hidden = history_entries.length > 0;
     }
     if (clear_all_el) {
-        clear_all_el.hidden = history_formulas.length === 0;
+        clear_all_el.hidden = history_entries.length === 0;
     }
 }
 
@@ -442,8 +508,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const index = Number(btn.dataset.index);
             if (btn.classList.contains('history-remove')) {
                 remove_from_history(index);
+            } else if (btn.classList.contains('history-edit')) {
+                start_label_edit(index);
             } else {
-                load_formula(history_formulas[index]);
+                load_formula(history_entries[index].formula);
             }
         });
     }
@@ -451,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (history_clear_el) {
         history_clear_el.addEventListener('click', () => {
             if (confirm("Clear all saved formulas?")) {
-                history_formulas = [];
+                history_entries = [];
                 save_history();
                 render_history();
             }

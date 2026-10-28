@@ -14,7 +14,7 @@ Calculates the molar mass of a chemical formula _as you type it_.
 - **Subscript display + copy** — rendered formula with one-click Unicode-subscript copy for documents
 - **Mass-percent breakdown** — each element's share of the total, with proportional bars
 - **Clear button** — the × in the input (or Esc) empties it for the next formula
-- **History** — press Enter (or clear) to save a result; click a saved formula to load it again. Kept in the browser between visits
+- **History** — press Enter (or clear) to save a result; click a saved formula to load it again, or ✎ to label it ("glucose", "Problem 3"). Kept in the browser between visits
 
 ## Usage
 

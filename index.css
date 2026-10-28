@@ -396,6 +396,32 @@ h1:has(#output-text) {
     white-space: nowrap;
 }
 
+.history-name {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.history-label {
+    font-size: 0.9rem;
+    color: #718096;
+    overflow-wrap: anywhere;
+}
+
+#history-list li.editing {
+    gap: 10px;
+    padding: 6px;
+}
+
+.history-label-input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    font-size: 1rem;
+    border-radius: 8px;
+}
+
+.history-edit,
 .history-remove {
     width: 28px;
     height: 28px;
@@ -403,10 +429,15 @@ h1:has(#output-text) {
     border: none;
     border-radius: 50%;
     background: none;
-    color: #cbd5e0;
+    color: #a0aec0;
     font-size: 1.2rem;
     line-height: 1;
     cursor: pointer;
+}
+
+.history-edit:hover {
+    background: #ebf4ff;
+    color: #667eea;
 }
 
 .history-remove:hover {
