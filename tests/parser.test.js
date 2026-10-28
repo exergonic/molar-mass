@@ -50,3 +50,35 @@ test("empty input", () => {
     assert.equal(mass, 0);
     assert.equal(element_counts.length, 0);
 });
+
+test("hydrates with any separator", () => {
+    for (const formula of ["CuSO4·5H2O", "CuSO4*5H2O", "CuSO4.5H2O", "CuSO4•5H2O", "CuSO4⋅5H2O"]) {
+        assert_mass(formula, 249.677);
+    }
+    assert_mass("MgSO4·7H2O", 246.466);
+    assert_mass("Na2CO3·10H2O", 286.138);
+    // Same answer as the parenthesized workaround.
+    assert_mass("CuSO4(H2O)5", 249.677);
+});
+
+test("fractional hydrate coefficients", () => {
+    assert_mass("CaSO4·0.5H2O", 145.142);
+    assert_mass("CaSO4·½H2O", 145.142);
+    assert_mass("CaSO4.0.5H2O", 145.142);
+});
+
+test("square and curly brackets", () => {
+    assert.deepEqual(counts("K3[Fe(CN)6]"), { K: 3, Fe: 1, C: 6, N: 6 });
+    assert_mass("K3[Fe(CN)6]", 329.248);
+    assert.deepEqual(counts("[Co(NH3)6]Cl3"), { Co: 1, N: 6, H: 18, Cl: 3 });
+    assert.deepEqual(counts("{[(CH3)2]2}3"), { C: 12, H: 36 });
+});
+
+test("hydrate separator display", () => {
+    const { normalize_dots, formula_to_unicode } = context;
+    assert.equal(normalize_dots("CuSO4.5H2O"), "CuSO4·5H2O");
+    assert.equal(normalize_dots("CuSO4*5H2O"), "CuSO4·5H2O");
+    assert.equal(normalize_dots("CaSO4.0.5H2O"), "CaSO4·0.5H2O");
+    assert.equal(formula_to_unicode("CuSO4.5H2O"), "CuSO₄·5H₂O");
+    assert.equal(formula_to_unicode("K3[Fe(CN)6]"), "K₃[Fe(CN)₆]");
+});

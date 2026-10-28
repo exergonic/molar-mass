@@ -304,14 +304,14 @@ function escape_html(str) {
 
 // Render a formula with subscript counts: H2SO4 -> H<sub>2</sub>SO<sub>4</sub>
 function render_formula_html(formula) {
-    return escape_html(formula).replace(/([A-Za-z)])(\d+)/g, "$1<sub>$2</sub>");
+    return escape_html(normalize_dots(formula)).replace(/([A-Za-z)\]}])(\d+)/g, "$1<sub>$2</sub>");
 }
 
 const UNICODE_SUBSCRIPTS = {"0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉"};
 
 // Plain-text formula with Unicode subscripts for pasting into documents: H2SO4 -> H₂SO₄
 function formula_to_unicode(formula) {
-    return formula.replace(/([A-Za-z)])(\d+)/g, (match, pre, digits) =>
+    return normalize_dots(formula).replace(/([A-Za-z)\]}])(\d+)/g, (match, pre, digits) =>
         pre + [...digits].map(d => UNICODE_SUBSCRIPTS[d]).join(""));
 }
 
@@ -371,37 +371,83 @@ function details_html(element_counts, total_mass) {
     return `<table class="detail-grid">${rows}</table>
         <div class="detail-source">Atomic masses from <a href="https://www.ciaaw.org/atomic-weights.htm" target="_blank" rel="noopener">IUPAC</a>${placeholder_note}</div>`
 };
-// Count atoms with a stack of element->count tallies, one per open parenthesis:
-// each ")" group multiplies out and folds into its parent, so Mg(OH)2 and
-// Fe2(SO4)3 accumulate correctly no matter how deeply groups nest.
+// Characters that separate the parts of a hydrate or adduct: CuSO4·5H2O.
+// "." and "*" are the typeable stand-ins for the middle dot.
+const HYDRATE_DOTS = "·•∙⋅*.";
+const OPEN_BRACKETS = "([{";
+const CLOSE_BRACKETS = ")]}";
+
+// Leading coefficient of a hydrate part: "5" in "·5H2O", "0.5" or "½" for a
+// hemihydrate. Returns the value and how many characters it used.
+function read_coefficient(formula, i) {
+    if (formula[i] === "½") {
+        return { value: 0.5, length: 1 };
+    }
+    const match = /^\d+(?:\.\d+)?/.exec(formula.slice(i));
+    return match ? { value: parseFloat(match[0]), length: match[0].length } : { value: 1, length: 0 };
+}
+
+// Count atoms with a stack of element->count tallies, one per open bracket:
+// each closing bracket multiplies its group out and folds it into the parent,
+// so Mg(OH)2, Fe2(SO4)3 and K3[Fe(CN)6] accumulate correctly no matter how
+// deeply groups nest. Hydrate parts (CuSO4·5H2O) are tallied separately and
+// added in times their leading coefficient.
 // Returns the total mass plus the per-element [symbol, count] pairs.
 function parse_formula(formula) {
-    const stack = [{}];
+    const totals = {};
+    let stack;
+    let coefficient;
     let i = 0;
 
+    function start_part() {
+        stack = [{}];
+        const coef = read_coefficient(formula, i);
+        coefficient = coef.value;
+        i += coef.length;
+    }
+
+    function fold_top_group(multiplier) {
+        const group = stack.pop();
+        const parent = stack[stack.length - 1];
+        for (const sym in group) {
+            parent[sym] = (parent[sym] || 0) + group[sym] * multiplier;
+        }
+    }
+
+    function end_part() {
+        // Unclosed bracket (mid-typing "Mg(OH"): fold open groups in as if
+        // closed, so the running total doesn't drop them.
+        while (stack.length > 1) {
+            fold_top_group(1);
+        }
+        for (const sym in stack[0]) {
+            totals[sym] = (totals[sym] || 0) + stack[0][sym] * coefficient;
+        }
+    }
+
+    start_part();
     while (i < formula.length) {
         const ch = formula[i];
-        if (ch === '(') {
+        if (HYDRATE_DOTS.includes(ch)) {
+            i++;
+            end_part();
+            start_part();
+        } else if (OPEN_BRACKETS.includes(ch)) {
             stack.push({});
             i++;
-        } else if (ch === ')') {
+        } else if (CLOSE_BRACKETS.includes(ch)) {
             i++;
             let digits = '';
             while (i < formula.length && /[0-9]/.test(formula[i])) {
                 digits += formula[i];
                 i++;
             }
-            // Unmatched ")" (a typo like "H2O)"): ignore it and its multiplier
-            // rather than popping the root tally.
+            // Unmatched closer (a typo like "H2O)"): ignore it and its
+            // multiplier rather than popping the root tally.
             if (stack.length === 1) {
                 continue;
             }
-            const multiplier = digits ? parseInt(digits) : 1;
-            const group = stack.pop();
-            const parent = stack[stack.length - 1];
-            for (const sym in group) {
-                parent[sym] = (parent[sym] || 0) + group[sym] * multiplier;
-            }
+            fold_top_group(digits ? parseInt(digits) : 1);
         } else if (/[A-Z]/.test(ch)) {
             let sym = ch;
             i++;
@@ -421,26 +467,43 @@ function parse_formula(formula) {
             i++;
         }
     }
+    end_part();
 
-    // Unclosed "(" (mid-typing "Mg(OH"): fold open groups in as if closed,
-    // so the running total doesn't drop them.
-    while (stack.length > 1) {
-        const group = stack.pop();
-        const parent = stack[stack.length - 1];
-        for (const sym in group) {
-            parent[sym] = (parent[sym] || 0) + group[sym];
-        }
-    }
-
-    const counts = stack[0];
     const element_counts = [];
     let mass = 0;
-    for (const sym in counts) {
-        const count = counts[sym];
+    for (const sym in totals) {
+        const count = totals[sym];
         element_counts.push([sym, count]);
         mass += element_mass_map[sym] * count;
     }
     return { mass, element_counts };
+}
+
+// Show hydrate separators as a middle dot: "CuSO4.5H2O" and "CuSO4*5H2O"
+// both display as CuSO4·5H2O. A decimal point inside a coefficient
+// ("·0.5H2O") is left alone.
+function normalize_dots(formula) {
+    let out = "";
+    let i = 0;
+    let at_part_start = true;
+    while (i < formula.length) {
+        if (at_part_start) {
+            const coef = read_coefficient(formula, i);
+            out += formula.slice(i, i + coef.length);
+            i += coef.length;
+            at_part_start = false;
+            continue;
+        }
+        const ch = formula[i];
+        if (HYDRATE_DOTS.includes(ch)) {
+            out += "·";
+            at_part_start = true;
+        } else {
+            out += ch;
+        }
+        i++;
+    }
+    return out;
 }
 
 function update_display() {
