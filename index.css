@@ -241,3 +241,175 @@ h1:has(#output-text) {
     white-space: nowrap;
     padding-left: 16px !important;
 }
+/* Clear button sits inside the formula input, right edge. */
+#input-text {
+    position: relative;
+}
+
+#mol-formula {
+    padding-right: 64px;
+}
+
+#formula-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: #edf2f7;
+    color: #718096;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+#formula-clear:hover {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+#formula-clear[hidden] {
+    display: none;
+}
+
+/* History: below the breakdown on narrow screens, pinned to the right on wide ones. */
+#history {
+    width: 100%;
+    max-width: 600px;
+    margin-top: 24px;
+    background: white;
+    border-radius: 10px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    color: #4a5568;
+}
+
+@media (min-width: 1240px) {
+    #history {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        width: 280px;
+        margin-top: 0;
+        max-height: calc(100vh - 48px);
+        overflow-y: auto;
+    }
+}
+
+#history-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+#history-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+#history-clear {
+    border: none;
+    background: none;
+    color: #a0aec0;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+#history-clear:hover {
+    color: #e53e3e;
+}
+
+#history-empty {
+    color: #a0aec0;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+#history-list {
+    list-style: none;
+}
+
+#history-list li {
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+}
+
+#history-list li:not(:last-child) {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#history-list li.current {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+#history-list li.just-saved {
+    animation: history-flash 0.8s ease-out;
+}
+
+@keyframes history-flash {
+    from { background: rgba(102, 126, 234, 0.35); }
+}
+
+.history-load {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 6px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    min-width: 0;
+}
+
+.history-load:hover .history-formula {
+    color: #667eea;
+}
+
+.history-formula {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2d3748;
+    overflow-wrap: anywhere;
+}
+
+.history-formula sub {
+    font-size: 0.7em;
+    color: #667eea;
+}
+
+.history-mass {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-weight: 600;
+    color: #667eea;
+    white-space: nowrap;
+}
+
+.history-remove {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: #cbd5e0;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.history-remove:hover {
+    background: #fed7d7;
+    color: #e53e3e;
+}

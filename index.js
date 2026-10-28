@@ -131,6 +131,107 @@ const placeholder_mass_numbers = new Set([
 // Current formula text, shared by the display update and the copy button.
 let molecular_formula;
 
+// Saved formulas, most recent first. Only formulas are stored; masses are
+// recomputed on render so they follow the decimals control.
+const HISTORY_KEY = "molwt-history";
+const MAX_HISTORY = 50;
+let history_formulas = load_history();
+// Formula to flash in the history list on its next render.
+let just_saved_formula = null;
+
+function load_history() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
+        return Array.isArray(saved) ? saved.filter(f => typeof f === "string") : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function save_history() {
+    try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history_formulas));
+    } catch (e) {
+        // Storage unavailable (private window, blocked site data): history lasts this page load only.
+    }
+}
+
+// Put a formula at the top of the history, moving it up if it's already there.
+// Blanks and formulas that don't compute (unknown symbols, lowercase) are skipped.
+function add_to_history(formula) {
+    formula = (formula || "").trim();
+    if (!formula) {
+        return;
+    }
+    const { mass } = parse_formula(formula);
+    if (!Number.isFinite(mass) || mass <= 0) {
+        return;
+    }
+    history_formulas = [formula, ...history_formulas.filter(f => f !== formula)].slice(0, MAX_HISTORY);
+    just_saved_formula = formula;
+    save_history();
+    render_history();
+}
+
+function remove_from_history(index) {
+    history_formulas.splice(index, 1);
+    save_history();
+    render_history();
+}
+
+function render_history() {
+    const list_el = document.getElementById('history-list');
+    const empty_el = document.getElementById('history-empty');
+    const clear_all_el = document.getElementById('history-clear');
+    if (!list_el) {
+        return;
+    }
+    const current = (molecular_formula || "").trim();
+    list_el.innerHTML = history_formulas.map((formula, index) => {
+        const { mass } = parse_formula(formula);
+        const classes = [
+            formula === current ? "current" : "",
+            formula === just_saved_formula ? "just-saved" : ""
+        ].join(" ").trim();
+        return `<li class="${classes}">
+            <button class="history-load" type="button" data-index="${index}" title="Load ${escape_html(formula)}">
+                <span class="history-formula">${render_formula_html(formula)}</span>
+                <span class="history-mass">${mass.toFixed(decimal_places)}</span>
+            </button>
+            <button class="history-remove" type="button" data-index="${index}" aria-label="Remove ${escape_html(formula)}">×</button>
+        </li>`;
+    }).join("");
+    just_saved_formula = null;
+    if (empty_el) {
+        empty_el.hidden = history_formulas.length > 0;
+    }
+    if (clear_all_el) {
+        clear_all_el.hidden = history_formulas.length === 0;
+    }
+}
+
+// Empty the input for the next problem, saving the outgoing formula first.
+function clear_formula() {
+    const input_el = document.getElementById('mol-formula');
+    if (!input_el) {
+        return;
+    }
+    add_to_history(input_el.value);
+    input_el.value = "";
+    update_display();
+    input_el.focus();
+}
+
+function load_formula(formula) {
+    const input_el = document.getElementById('mol-formula');
+    if (!input_el) {
+        return;
+    }
+    input_el.value = formula;
+    update_display();
+    input_el.focus();
+}
+
 function escape_html(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -280,6 +381,10 @@ function update_display() {
     if (formula_row_el) {
         formula_row_el.hidden = !molecular_formula;
     }
+    const clear_el = document.getElementById('formula-clear');
+    if (clear_el) {
+        clear_el.hidden = !molecular_formula;
+    }
 
     const decimal_value_el = document.getElementById('decimal-value');
     if (decimal_value_el) {
@@ -293,12 +398,49 @@ function update_display() {
     if (plus_el) {
         plus_el.disabled = decimal_places >= MAX_DECIMALS;
     }
+    render_history();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const input_el = document.getElementById('mol-formula');
     if (input_el) {
         input_el.addEventListener('input', update_display);
+        input_el.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                add_to_history(input_el.value);
+            } else if (event.key === 'Escape') {
+                clear_formula();
+            }
+        });
+    }
+    const clear_el = document.getElementById('formula-clear');
+    if (clear_el) {
+        clear_el.addEventListener('click', clear_formula);
+    }
+    const history_list_el = document.getElementById('history-list');
+    if (history_list_el) {
+        history_list_el.addEventListener('click', (event) => {
+            const btn = event.target.closest('button[data-index]');
+            if (!btn) {
+                return;
+            }
+            const index = Number(btn.dataset.index);
+            if (btn.classList.contains('history-remove')) {
+                remove_from_history(index);
+            } else {
+                load_formula(history_formulas[index]);
+            }
+        });
+    }
+    const history_clear_el = document.getElementById('history-clear');
+    if (history_clear_el) {
+        history_clear_el.addEventListener('click', () => {
+            if (confirm("Clear all saved formulas?")) {
+                history_formulas = [];
+                save_history();
+                render_history();
+            }
+        });
     }
     const copy_btn_el = document.getElementById('formula-copy');
     if (copy_btn_el) {

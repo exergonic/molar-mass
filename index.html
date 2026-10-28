@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Molar Mass Calculator</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="index.css" />
     <script src="index.js" defer></script>
   </head>
@@ -20,6 +21,7 @@
         placeholder="Enter Molecular Formula..."
         autofocus
       />
+      <button id="formula-clear" type="button" aria-label="Clear formula" title="Clear (Esc)" hidden>×</button>
     </div>
     <div id="formula-display-row" hidden>
       <div id="formula-display" aria-live="polite"></div>
@@ -37,5 +39,13 @@
       <button id="decimal-plus" type="button" aria-label="More decimal places">+</button>
     </div>
     <div id="details-text" class="details-text"></div>
+    <aside id="history" aria-label="Saved molar masses">
+      <div id="history-header">
+        <h2>History</h2>
+        <button id="history-clear" type="button" hidden>Clear all</button>
+      </div>
+      <p id="history-empty">Press Enter to save a result here. Clearing a formula saves it too.</p>
+      <ul id="history-list"></ul>
+    </aside>
   </body>
 </html>
