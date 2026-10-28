@@ -27,3 +27,11 @@ Type a chemical formula into the input field. Examples:
 | `Ca(NO3)2` | 164.0860 |
 | `Fe2(SO4)3` | 399.8580 |
 | `C6H12O6` | 180.1560 |
+
+## Tests
+
+Parser tests use Node's built-in test runner (no dependencies). From the repo root:
+
+```bash
+node --test
+```
