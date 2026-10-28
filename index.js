@@ -325,6 +325,11 @@ function parse_formula(formula) {
                 digits += formula[i];
                 i++;
             }
+            // Unmatched ")" (a typo like "H2O)"): ignore it and its multiplier
+            // rather than popping the root tally.
+            if (stack.length === 1) {
+                continue;
+            }
             const multiplier = digits ? parseInt(digits) : 1;
             const group = stack.pop();
             const parent = stack[stack.length - 1];
@@ -348,6 +353,16 @@ function parse_formula(formula) {
             top[sym] = (top[sym] || 0) + count;
         } else {
             i++;
+        }
+    }
+
+    // Unclosed "(" (mid-typing "Mg(OH"): fold open groups in as if closed,
+    // so the running total doesn't drop them.
+    while (stack.length > 1) {
+        const group = stack.pop();
+        const parent = stack[stack.length - 1];
+        for (const sym in group) {
+            parent[sym] = (parent[sym] || 0) + group[sym];
         }
     }
 
